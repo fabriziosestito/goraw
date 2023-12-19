@@ -1,11 +1,12 @@
 rules:
-- apiGroups: [""]
-  apiVersions: ["v1"]
-  resources: ["pods"]
-  operations: ["CREATE"]
+  - apiGroups: [""]
+    apiVersions: ["v1"]
+    resources: ["pods"]
+    operations: ["CREATE"]
 mutating: false
 contextAware: false
 executionMode: kubewarden-wapc
+policyType: raw
 # Consider the policy for the background audit scans. Default is true. Note the
 # intrinsic limitations of the background audit feature on docs.kubewarden.io;
 # If your policy hits any limitations, set to false for the audit feature to

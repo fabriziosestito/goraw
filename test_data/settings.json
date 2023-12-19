@@ -1,0 +1,5 @@
+{
+  "validUsers": ["alice"],
+  "validActions": ["delete", "create"],
+  "validResources": ["products", "orders"]
+}
