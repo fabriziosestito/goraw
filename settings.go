@@ -8,24 +8,28 @@ import (
 	kubewarden_protocol "github.com/kubewarden/policy-sdk-go/protocol"
 )
 
-// Settings is the structure that describes the policy settings.
+// Settings represents the settings of the policy.
 type Settings struct {
-	DeniedNames []string `json:"denied_names"`
+	ValidUsers     []string `json:"validUsers"`
+	ValidActions   []string `json:"validActions"`
+	ValidResources []string `json:"validResources"`
 }
 
-// No special checks have to be done
+// Valid returns true if the settings are valid.
 func (s *Settings) Valid() (bool, error) {
-	return true, nil
-}
-
-func (s *Settings) IsNameDenied(name string) bool {
-	for _, deniedName := range s.DeniedNames {
-		if deniedName == name {
-			return true
-		}
+	if len(s.ValidUsers) == 0 {
+		return false, fmt.Errorf("validUsers cannot be empty")
 	}
 
-	return false
+	if len(s.ValidActions) == 0 {
+		return false, fmt.Errorf("validActions cannot be empty")
+	}
+
+	if len(s.ValidResources) == 0 {
+		return false, fmt.Errorf("validResources cannot be empty")
+	}
+
+	return true, nil
 }
 
 func NewSettingsFromValidationReq(validationReq *kubewarden_protocol.ValidationRequest) (Settings, error) {
@@ -34,6 +38,7 @@ func NewSettingsFromValidationReq(validationReq *kubewarden_protocol.ValidationR
 	return settings, err
 }
 
+// validateSettings validates the settings.
 func validateSettings(payload []byte) ([]byte, error) {
 	logger.Info("validating settings")
 

@@ -1,40 +1,73 @@
 package main
 
 import (
-	"encoding/json"
 	"testing"
 )
 
-func TestParsingSettingsWithNoValueProvided(t *testing.T) {
-	rawSettings := []byte(`{}`)
-	settings := &Settings{}
-	if err := json.Unmarshal(rawSettings, settings); err != nil {
-		t.Errorf("Unexpected error %+v", err)
-	}
-
-	if len(settings.DeniedNames) != 0 {
-		t.Errorf("Expected DeniedNames to be empty")
+func TestAcceptValidSettings(t *testing.T) {
+	settings := &Settings{
+		ValidUsers:     []string{"alice", "bob"},
+		ValidActions:   []string{"get", "list"},
+		ValidResources: []string{"pods", "deployments"},
 	}
 
 	valid, err := settings.Valid()
-	if !valid {
-		t.Errorf("Settings are reported as not valid")
-	}
 	if err != nil {
-		t.Errorf("Unexpected error %+v", err)
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	if !valid {
+		t.Errorf("settings should be valid")
 	}
 }
 
-func TestIsNameDenied(t *testing.T) {
-	settings := Settings{
-		DeniedNames: []string{"bob"},
+func TestRejectSettingsWithEmptyValidUsers(t *testing.T) {
+	settings := &Settings{
+		ValidUsers:     []string{},
+		ValidActions:   []string{"get", "list"},
+		ValidResources: []string{"pods", "deployments"},
 	}
 
-	if !settings.IsNameDenied("bob") {
-		t.Errorf("name should be denied")
+	valid, err := settings.Valid()
+	if valid {
+		t.Errorf("settings should not be valid")
 	}
 
-	if settings.IsNameDenied("alice") {
-		t.Errorf("name should not be denied")
+	if err.Error() != "validUsers cannot be empty" {
+		t.Errorf("unexpected error message: %s", err.Error())
+	}
+}
+
+func TestRejectSettingsWithEmptyValidActions(t *testing.T) {
+	settings := &Settings{
+		ValidUsers:     []string{"alice", "bob"},
+		ValidActions:   []string{},
+		ValidResources: []string{"pods", "deployments"},
+	}
+
+	valid, err := settings.Valid()
+	if valid {
+		t.Errorf("settings should not be valid")
+	}
+
+	if err.Error() != "validActions cannot be empty" {
+		t.Errorf("unexpected error message: %s", err.Error())
+	}
+}
+
+func TestRejectSettingsWithEmptyValidResources(t *testing.T) {
+	settings := &Settings{
+		ValidUsers:     []string{"alice", "bob"},
+		ValidActions:   []string{"get", "list"},
+		ValidResources: []string{},
+	}
+
+	valid, err := settings.Valid()
+	if valid {
+		t.Errorf("settings should not be valid")
+	}
+
+	if err.Error() != "validResources cannot be empty" {
+		t.Errorf("unexpected error message: %s", err.Error())
 	}
 }

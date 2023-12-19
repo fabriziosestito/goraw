@@ -4,135 +4,76 @@ import (
 	"encoding/json"
 	"testing"
 
-	corev1 "github.com/kubewarden/k8s-objects/api/core/v1"
-	metav1 "github.com/kubewarden/k8s-objects/apimachinery/pkg/apis/meta/v1"
+	"github.com/kubewarden/policy-sdk-go/protocol"
 	kubewarden_protocol "github.com/kubewarden/policy-sdk-go/protocol"
-	kubewarden_testing "github.com/kubewarden/policy-sdk-go/testing"
 )
 
-func TestEmptySettingsLeadsToApproval(t *testing.T) {
-	settings := Settings{}
-	pod := corev1.Pod{
-		Metadata: &metav1.ObjectMeta{
-			Name:      "test-pod",
-			Namespace: "default",
+func TestValidateRequestAccept(t *testing.T) {
+	validationRequest := RawValidationRequest{
+		Request: Request{
+			User:     "alice",
+			Action:   "get",
+			Resource: "products",
+		},
+		Settings: Settings{
+			ValidUsers:     []string{"alice", "bob"},
+			ValidActions:   []string{"get", "list"},
+			ValidResources: []string{"products", "orders"},
 		},
 	}
 
-	payload, err := kubewarden_testing.BuildValidationRequest(&pod, &settings)
+	validationRequestJSON, err := json.Marshal(&validationRequest)
 	if err != nil {
-		t.Errorf("Unexpected error: %+v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 
-	responsePayload, err := validate(payload)
+	responseJSON, err := validate(validationRequestJSON)
 	if err != nil {
-		t.Errorf("Unexpected error: %+v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 
-	var response kubewarden_protocol.ValidationResponse
-	if err := json.Unmarshal(responsePayload, &response); err != nil {
-		t.Errorf("Unexpected error: %+v", err)
+	var response protocol.ValidationResponse
+	err = json.Unmarshal(responseJSON, &response)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
 	}
 
-	if response.Accepted != true {
-		t.Errorf("Unexpected rejection: msg %s - code %d", *response.Message, *response.Code)
+	if !response.Accepted {
+		t.Errorf("response should be accepted: %s", *response.Message)
 	}
 }
 
-func TestApproval(t *testing.T) {
-	settings := Settings{
-		DeniedNames: []string{"foo", "bar"},
-	}
-	pod := corev1.Pod{
-		Metadata: &metav1.ObjectMeta{
-			Name:      "test-pod",
-			Namespace: "default",
+func TestValidateRequestReject(t *testing.T) {
+	validationRequest := RawValidationRequest{
+		Request: Request{
+			User:     "alice",
+			Action:   "delete",
+			Resource: "products",
+		},
+		Settings: Settings{
+			ValidUsers:     []string{"alice", "bob"},
+			ValidActions:   []string{"get", "list"},
+			ValidResources: []string{"products", "orders"},
 		},
 	}
 
-	payload, err := kubewarden_testing.BuildValidationRequest(&pod, &settings)
+	validationRequestJSON, err := json.Marshal(&validationRequest)
 	if err != nil {
-		t.Errorf("Unexpected error: %+v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 
-	responsePayload, err := validate(payload)
+	responseJSON, err := validate(validationRequestJSON)
 	if err != nil {
-		t.Errorf("Unexpected error: %+v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 
 	var response kubewarden_protocol.ValidationResponse
-	if err := json.Unmarshal(responsePayload, &response); err != nil {
-		t.Errorf("Unexpected error: %+v", err)
-	}
-
-	if response.Accepted != true {
-		t.Error("Unexpected rejection")
-	}
-}
-
-func TestApproveFixture(t *testing.T) {
-	settings := Settings{
-		DeniedNames: []string{},
-	}
-
-	payload, err := kubewarden_testing.BuildValidationRequestFromFixture(
-		"test_data/pod.json",
-		&settings)
+	err = json.Unmarshal(responseJSON, &response)
 	if err != nil {
-		t.Errorf("Unexpected error: %+v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 
-	responsePayload, err := validate(payload)
-	if err != nil {
-		t.Errorf("Unexpected error: %+v", err)
-	}
-
-	var response kubewarden_protocol.ValidationResponse
-	if err := json.Unmarshal(responsePayload, &response); err != nil {
-		t.Errorf("Unexpected error: %+v", err)
-	}
-
-	if response.Accepted != true {
-		t.Error("Unexpected rejection")
-	}
-}
-
-func TestRejectionBecauseNameIsDenied(t *testing.T) {
-	settings := Settings{
-		DeniedNames: []string{"foo", "test-pod"},
-	}
-
-	pod := corev1.Pod{
-		Metadata: &metav1.ObjectMeta{
-			Name:      "test-pod",
-			Namespace: "default",
-		},
-	}
-
-	payload, err := kubewarden_testing.BuildValidationRequest(&pod, &settings)
-	if err != nil {
-		t.Errorf("Unexpected error: %+v", err)
-	}
-
-	responsePayload, err := validate(payload)
-	if err != nil {
-		t.Errorf("Unexpected error: %+v", err)
-	}
-
-	var response kubewarden_protocol.ValidationResponse
-	if err := json.Unmarshal(responsePayload, &response); err != nil {
-		t.Errorf("Unexpected error: %+v", err)
-	}
-
-	if response.Accepted != false {
-		t.Error("Unexpected approval")
-	}
-
-	expected_message := "The 'test-pod' name is on the deny list"
-	if response.Message == nil {
-		t.Errorf("expected response to have a message")
-	}
-	if *response.Message != expected_message {
-		t.Errorf("Got '%s' instead of '%s'", *response.Message, expected_message)
+	if response.Accepted {
+		t.Errorf("response should be not accepted")
 	}
 }
